@@ -203,13 +203,15 @@ spec:
       prometheusremotewrite:
         endpoint: {{ .Values.kof.metrics.endpoint }}
         tls:
-          insecure: true
+          insecure_skip_verify: true
         auth:
           authenticator: basicauth/metrics
       otlphttp/logs:
         auth:
           authenticator: basicauth/logs
         logs_endpoint: {{ .Values.kof.logs.endpoint }}
+        tls:
+          insecure_skip_verify: true
       debug:
         verbosity: basic
 
