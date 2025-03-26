@@ -45,7 +45,7 @@ endef
 
 dev:
 	mkdir -p dev
-
+#$(shell if [ `python3 -c 'import urllib.parse; print(urllib.parse.urlparse("${REGISTRY_REPO}").scheme)'` = "http" ]; then echo true; else echo false; fi;)
 lint-chart-%:
 	$(HELM) dependency update $(TEMPLATES_DIR)/$*
 	$(HELM) lint --strict $(TEMPLATES_DIR)/$* --set global.lint=true
@@ -55,14 +55,17 @@ package-chart-%: lint-chart-%
 
 .PHONY: helm-package
 helm-package: $(CHARTS_PACKAGE_DIR) $(EXTENSION_CHARTS_PACKAGE_DIR)
-	rm -rf $(CHARTS_PACKAGE_DIR)
-	@make $(patsubst %,package-chart-%,$(TEMPLATE_FOLDERS))
+	# rm -rf $(CHARTS_PACKAGE_DIR)
+	# @make $(patsubst %,package-chart-%,$(TEMPLATE_FOLDERS))
 
 .PHONY: helm-push
 helm-push: helm-package
 	@if [ ! $(REGISTRY_IS_OCI) ]; then \
 	    repo_flag="--repo"; \
 	fi; \
+        if [ $(REGISTRY_PLAIN_HTTP) ];   then \
+            plain_http_flag="--plain-http"; \
+        fi; \
 	for chart in $(CHARTS_PACKAGE_DIR)/*.tgz; do \
 		base=$$(basename $$chart .tgz); \
 		chart_version=$$(echo $$base | grep -o "v\{0,1\}[0-9]\+\.[0-9]\+\.[0-9].*"); \
@@ -78,7 +81,7 @@ helm-push: helm-package
 		fi; \
 		if $(REGISTRY_IS_OCI); then \
 			echo "Pushing $$chart to $(REGISTRY_REPO)"; \
-			$(HELM) push "$$chart" $(REGISTRY_REPO); \
+			$(HELM) push $${plain_http_flag} "$$chart" $(REGISTRY_REPO); \
 		else \
 			if [ ! $$REGISTRY_USERNAME ] && [ ! $$REGISTRY_PASSWORD ]; then \
 				echo "REGISTRY_USERNAME and REGISTRY_PASSWORD must be populated to push the chart to an HTTPS repository"; \
