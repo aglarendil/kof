@@ -1,4 +1,4 @@
- Top level field indicating an override for fullname
+# Top level field indicating an override for fullname
 fullnameOverride: ""
 # Top level field indicating an override for the namespace
 namespaceOverride: ""
@@ -110,21 +110,21 @@ defaultCRConfig:
   config: 
     exporters:
       debug:
-        verbosity: basic
+        verbosity: detailed
       otlphttp/logs:
         auth:
           authenticator: basicauth/logs
-        logs_endpoint: logs_endpoint 
+        logs_endpoint: https://vmauth.g.vkuklin-k0f-4.cso-k0rdent-lab-team.eu-cloud.mirantis.net/vls/insert/opentelemetry/v1/logs
         tls:
           insecure_skip_verify: true
       otlphttp/traces:
-        endpoint: traces_endpoint 
+        endpoint: https://jaeger.g.vkuklin-k0f-4.cso-k0rdent-lab-team.eu-cloud.mirantis.net/collector
         tls:
           insecure_skip_verify: true
       prometheusremotewrite:
         auth:
           authenticator: basicauth/metrics
-        endpoint: prometheus_endpoint
+        endpoint: https://vmauth.g.vkuklin-k0f-4.cso-k0rdent-lab-team.eu-cloud.mirantis.net/vm/insert/0/prometheus/api/v1/write
         tls:
           insecure_skip_verify: true
     receivers:
@@ -134,6 +134,11 @@ defaultCRConfig:
             endpoint: ${env:MY_POD_IP}:4317
           http:
             endpoint: ${env:MY_POD_IP}:4318
+      prometheus:
+        api_server:
+          enabled: true
+          server_config:
+            endpoint: "localhost:9090"
   # exporters:
   #   otlp:
   #     endpoint: "otel-collector.default:4317"
@@ -155,12 +160,12 @@ defaultCRConfig:
     extensions:
       basicauth/metrics:
         client_auth:
-          password: ppassword
-          username: uusername
+          password: "ppassword"
+          username: "uusername"
       basicauth/logs:
         client_auth:
-          password: ppassword
-          username: uusername
+          password: "ppassword"
+          username: "uusername"
     service:
       extensions:
         - basicauth/metrics
