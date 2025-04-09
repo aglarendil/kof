@@ -60,6 +60,74 @@ collectors:
         cpu: 100m
         memory: 250Mi
     suffix: cluster-stats
+  target-allocator:
+    targetAllocator:
+      allocationStrategy: per-node
+      allocationFallbackStrategy: consistent-hashing
+      enabled: true
+      image: ghcr.io/open-telemetry/opentelemetry-operator/target-allocator:main
+      prometheusCR:
+        enabled: true
+        podMonitorSelector: {}
+#        scrapeInterval: 30s
+        serviceMonitorSelector: {}
+    config:
+      processors:
+        batch:
+          send_batch_max_size: 1500
+          send_batch_size: 1000
+          timeout: 1s
+        resourcedetection:
+          detectors:
+          - env
+          - system
+  #        - ec2
+  #        - gcp
+  #        - azure
+  #        - k8snode
+  #        - kubeadm
+          override: false
+          timeout: 2s
+      receivers:
+        otlp:
+          protocols:
+            grpc:
+              endpoint: 0.0.0.0:4317
+            http:
+              endpoint: 0.0.0.0:4318
+      service:
+        pipelines:
+          logs:
+            receivers:
+              - otlp
+            exporters:
+              - debug
+#          traces:
+#            receivers:
+#              - otlp
+#            exporters:
+#              - debug
+          metrics:
+            receivers:
+              - prometheus
+            processors:
+              - resourcedetection
+              - batch
+    enabled: true
+    mode: daemonset
+    resources:
+      limits:
+        cpu: 200m
+        memory: 500Mi
+      requests:
+        cpu: 100m
+        memory: 250Mi
+    scrape_configs_file: ""
+    suffix: ta-daemon
+    tolerations:
+    - effect: NoSchedule
+      key: node-role.kubernetes.io/master
+      operator: Exists
   daemon:
     config:
       processors:
@@ -155,7 +223,7 @@ collectors:
       key: node-role.kubernetes.io/master
       operator: Exists
 coreDns:
-  enabled: false
+  enabled: true
   endpoints: []
   service:
     enabled: true
@@ -212,12 +280,12 @@ defaultCRConfig:
     extensions:
       basicauth/logs:
         client_auth:
-          password: uusername
-          username: ppassword
+          password: ppassword 
+          username: uusername
       basicauth/metrics:
         client_auth:
-          password: uusername
-          username: ppassword
+          password: ppassword
+          username: uusername
     receivers:
       otlp:
         protocols:
@@ -226,6 +294,8 @@ defaultCRConfig:
           http:
             endpoint: ${env:MY_POD_IP}:4318
       prometheus:
+        config:
+          scrape_configs: []
         api_server:
           enabled: true
           server_config:
@@ -412,7 +482,7 @@ kubeControllerManager:
     serverName: null
     targetLimit: 0
 kubeDns:
-  enabled: true
+  enabled: false
   service:
     dnsmasq:
       port: 10054

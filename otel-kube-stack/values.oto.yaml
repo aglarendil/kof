@@ -76,7 +76,8 @@ manager:
   featureGates: ""
   # The featureGatesMap will enable or disable specific feature gates in the operator as well as deploy any prerequisites for the feature gate.
   # If this property is not an empty map, the featureGates property will be ignored.
-  featureGatesMap: {}
+  featureGatesMap:
+    operator.targetallocator.fallbackstrategy: true
   # operator.targetallocator.mtls: false
   # operator.targetallocator.fallbackstrategy: false
   # operator.collector.targetallocatorcr: false
