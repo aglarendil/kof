@@ -21,6 +21,24 @@ collectors:
           send_batch_max_size: 1500
           send_batch_size: 1000
           timeout: 1s
+        transform/k8scluster:
+          metric_statements:
+            - context: scope
+              conditions:
+                - IsMatch(scope.name, "k8scluster")
+              statements:
+                - set(resource.attributes["service.name"], "k8scluster")
+                - set(resource.attributes["service.instance.id"], resource.attributes["k8s.pod.uid"])
+            - context: resource
+              conditions:
+                - resource.attributes["service.instance.id"] == nil
+              statements:
+                - set(resource.attributes["service.instance.id"], resource.attributes["k8s.node.uid"])
+            - context: datapoint
+              statements:
+                - set(datapoint.cache["attrs"], resource.attributes)
+                - keep_matching_keys(datapoint.cache["attrs"], "k8s.*")
+                - merge_maps(datapoint.attributes, datapoint.cache["attrs"], "insert")
         resourcedetection:
           detectors:
           - env
@@ -40,6 +58,7 @@ collectors:
             processors:
             - resourcedetection
             - batch
+            - transform/k8scluster
             receivers:
             - k8s_cluster
     enabled: true
@@ -115,6 +134,9 @@ collectors:
               - batch
     enabled: true
     mode: daemonset
+    presets:
+      kubernetesAttributes:
+        enabled: true
     resources:
       limits:
         cpu: 200m
@@ -122,7 +144,7 @@ collectors:
       requests:
         cpu: 100m
         memory: 250Mi
-    scrape_configs_file: ""
+#    scrape_configs_file: ""
     suffix: ta-daemon
     tolerations:
     - effect: NoSchedule
@@ -143,6 +165,20 @@ collectors:
               statements:
                 - set(resource.attributes["service.name"], "kubeletstats")
                 - set(resource.attributes["service.instance.id"], resource.attributes["k8s.pod.uid"])
+        transform/hostmetrics:
+          metric_statements:
+            - context: scope
+              conditions:
+                - IsMatch(scope.name, "hostmetrics")
+              statements:
+                - set(resource.attributes["service.name"], "hostmetrics")
+                - set(resource.attributes["service.instance.id"], resource.attributes["k8s.node.uid"])
+        transform/k8snode:
+          metric_statements:
+            - context: datapoint
+              statements:
+                - set(datapoint.attributes["node"], resource.attributes["k8s.node.name"])
+                - set(datapoint.attributes["nodename"], resource.attributes["k8s.node.name"])
         resourcedetection:
           detectors:
           - env
@@ -187,6 +223,8 @@ collectors:
             processors:
             - resourcedetection
             - transform/kubeletstats
+            - transform/hostmetrics
+            - transform/k8snode
             - batch
             receivers:
             - otlp
@@ -272,20 +310,24 @@ defaultCRConfig:
       prometheusremotewrite:
 #        resource_to_telemetry_conversion:
 #          enabled: true
+        external_labels:
+          clusterName: vkuklin-k0f-4-eu-openstack-cluster-deployment
         auth:
           authenticator: basicauth/metrics
         endpoint: https://vmauth.g.vkuklin-k0f-4.cso-k0rdent-lab-team.eu-cloud.mirantis.net/vm/insert/0/prometheus/api/v1/write
         tls:
           insecure_skip_verify: true
+    processors:
+ 
     extensions:
       basicauth/logs:
         client_auth:
-          password: ppassword 
-          username: uusername
+          password: uusername
+          username: ppassword
       basicauth/metrics:
         client_auth:
-          password: ppassword
-          username: uusername
+          password: uusername
+          username: ppassword
     receivers:
       otlp:
         protocols:
@@ -295,7 +337,11 @@ defaultCRConfig:
             endpoint: ${env:MY_POD_IP}:4318
       prometheus:
         config:
-          scrape_configs: []
+          scrape_configs: 
+          - job_name: dummy
+            scrape_interval: 600s
+            static_configs:
+              - targets: []
         api_server:
           enabled: true
           server_config:
