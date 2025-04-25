@@ -151,7 +151,15 @@ collectors:
       key: node-role.kubernetes.io/master
       operator: Exists
   daemon:
+    env:
+      - name: PATH
+        value: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/hostfs/usr/bin"
+      - name: LD_LIBRARY_PATH
+        value: "/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu:/hostfs/lib/x86_64-linux-gnu:/hostfs/usr/lib/x86_64-linux-gnu:/hostfs/usr/lib/x86_64-linux-gnu/systemd"
     config:
+      extensions:
+        file_storage:
+          directory: /var/lib/otelcol
       processors:
         batch:
           send_batch_max_size: 1500
@@ -188,6 +196,246 @@ collectors:
           - azure
           - k8snode
           - kubeadm
+          override: false
+          timeout: 2s
+      receivers:
+        filelog/containers:
+#          storage: file_storage
+          exclude: []
+          include:
+          - /var/log/pods/*/*/*.log
+          include_file_name: false
+          include_file_path: true
+          operators:
+          - id: container-parser
+            max_log_size: 102400
+            type: container
+          - id: extract_metadata_from_filepath
+            on_error: drop_quiet
+            parse_from: attributes["log.file.path"]
+            regex: ^.*\/(?P<namespace>[^_]+)_(?P<pod_name>[^_]+)_(?P<uid>[a-f0-9\-]{36})\/(?P<container_name>[^\._]+)\/(?P<restart_count>\d+)\.log$
+            type: regex_parser
+          - from: attributes.container_name
+            to: resource["k8s.container.name"]
+            type: move
+          - from: attributes.namespace
+            to: resource["k8s.namespace.name"]
+            type: move
+          - from: attributes.pod_name
+            to: resource["k8s.pod.name"]
+            type: move
+          - from: attributes.restart_count
+            to: resource["k8s.container.restart_count"]
+            type: move
+          - from: attributes.uid
+            to: resource["k8s.pod.uid"]
+            type: move
+          - id: extract_log_level
+            on_error: send_quiet
+            parse_from: body
+            regex: (?i)(?P<log_level>(panic|fatal|crit|alert|emerg|err(?:or)?|warn(?:ing)?|info|debug|notice|trace|[EFDWI]\d{4}))
+            type: regex_parser
+          - id: extract_short_letter
+            if: ("log_level" in attributes)
+            on_error: send_quiet
+            parse_from: attributes["log_level"]
+            regex: (?i)(?P<log_level>[EFDWI])\d{4}
+            type: regex_parser
+          - field: attributes.log_level
+            if: '!("log_level" in attributes)'
+            type: add
+            value: info
+          - mapping:
+              debug:
+              - debug
+              - d
+              error:
+              - error
+              - err
+              - failed
+              - e
+              fatal:
+              - fatal
+              - crit
+              - alert
+              - emerg
+              - panic
+              - f
+              info:
+              - info
+              - notice
+              - trace
+              - i
+              warn:
+              - warn
+              - warning
+              - w
+            overwrite_text: true
+            parse_from: attributes.log_level
+            preset: none
+            type: severity_parser
+          - cache:
+              size: 128
+            field: attributes.log_level
+            type: remove
+          retry_on_failure:
+            enabled: true
+          start_at: end
+
+        filelog/syslog:
+#          storage: file_storage
+          exclude: []
+          include:
+          - /hostfs/var/log/syslog
+          include_file_name: false
+          include_file_path: true
+          operators:
+            - type: syslog_parser
+              protocol: rfc3164
+              allow_skip_pri_header: true
+          retry_on_failure:
+            enabled: true
+          start_at: end
+
+
+#        journald:
+#          directory: /hostfs/var/log/journal
+#          operators:
+#            - type: journald_input
+#              id: journald_input
+#              directory: /hostfs/var/log/journal
+#              matches: []
+#              all: true
+        otlp:
+          protocols:
+            grpc:
+              endpoint: 0.0.0.0:4317
+            http:
+              endpoint: 0.0.0.0:4318
+      service:
+        extensions:
+          - basicauth/metrics
+          - basicauth/logs
+#          - file_storage
+        pipelines:
+          logs:
+            processors:
+            - resourcedetection
+            - batch
+            receivers:
+            - otlp
+            - filelog/containers
+            - filelog/syslog
+#            - journald
+          metrics:
+            processors:
+            - resourcedetection
+            - transform/kubeletstats
+            - transform/hostmetrics
+            - transform/k8snode
+            - batch
+            receivers:
+            - otlp
+          traces:
+            exporters:
+            - debug
+            processors:
+            - resourcedetection
+            - batch
+            receivers:
+            - otlp
+    enabled: true
+    mode: daemonset
+    presets:
+      hostMetrics:
+        enabled: true
+      kubeletMetrics:
+        enabled: true
+      kubernetesAttributes:
+        enabled: true
+#      logsCollection:
+#        enabled: true
+    resources:
+      limits:
+        cpu: 200m
+        memory: 500Mi
+      requests:
+        cpu: 100m
+        memory: 250Mi
+    scrape_configs_file: daemon_scrape_configs.yaml
+    podSecurityContext:
+      supplementalGroups: [4, 999]
+#    securityContext:
+#      supplementalGroups: [4000]
+    suffix: daemon
+    tolerations:
+    - effect: NoSchedule
+      key: node-role.kubernetes.io/master
+      operator: Exists
+    volumes:
+      - name: linker
+        hostPath:
+          path: /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      - name: varlogpods
+        hostPath:
+          path: /var/log/pods
+      - name: varlibotelcol
+        hostPath:
+          path: /var/lib/otelcol
+          type: DirectoryOrCreate
+      - name: varlibdockercontainers
+        hostPath:
+          path: /var/lib/docker/containers
+    volumeMounts:
+      - name: linker
+        mountPath: /lib64/ld-linux-x86-64.so.2
+        readOnly: true
+      - name: varlogpods
+        mountPath: /var/log/pods
+        readOnly: true
+      - name: varlibdockercontainers
+        mountPath: /var/lib/docker/containers
+        readOnly: true
+      - name: varlibotelcol
+        mountPath: /var/lib/otelcol
+  controller-k0s:
+    config:
+      processors:
+        batch:
+          send_batch_max_size: 1500
+          send_batch_size: 1000
+          timeout: 1s
+        transform/kubeletstats:
+          metric_statements:
+            - context: scope
+              conditions:
+                - IsMatch(scope.name, "kubeletstats")
+              statements:
+                - set(resource.attributes["service.name"], "kubeletstats")
+                - set(resource.attributes["service.instance.id"], resource.attributes["k8s.pod.uid"])
+        transform/hostmetrics:
+          metric_statements:
+            - context: scope
+              conditions:
+                - IsMatch(scope.name, "hostmetrics")
+              statements:
+                - set(resource.attributes["service.name"], "hostmetrics")
+                - set(resource.attributes["service.instance.id"], resource.attributes["k8s.node.uid"])
+        transform/k8snode:
+          metric_statements:
+            - context: datapoint
+              statements:
+                - set(datapoint.attributes["node"], resource.attributes["k8s.node.name"])
+                - set(datapoint.attributes["nodename"], resource.attributes["k8s.node.name"])
+        resourcedetection:
+          detectors:
+          - env
+          - system
+          - ec2
+          - gcp
+          - azure
+#          - k8snode
+#          - kubeadm
           override: false
           timeout: 2s
       receivers:
@@ -228,9 +476,8 @@ collectors:
             - batch
             receivers:
             - otlp
+            - prometheus
           traces:
-            exporters:
-            - debug
             processors:
             - resourcedetection
             - batch
@@ -238,15 +485,16 @@ collectors:
             - otlp
     enabled: true
     mode: daemonset
+    hostNetwork: true
     presets:
       hostMetrics:
-        enabled: true
+        enabled: false
       kubeletMetrics:
-        enabled: true
+        enabled: false
       kubernetesAttributes:
-        enabled: true
+        enabled: false
       logsCollection:
-        enabled: true
+        enabled: false
     resources:
       limits:
         cpu: 200m
@@ -254,12 +502,23 @@ collectors:
       requests:
         cpu: 100m
         memory: 250Mi
-    scrape_configs_file: daemon_scrape_configs.yaml
-    suffix: daemon
+    scrape_configs_file: k0s_scrape_configs.yaml
+    nodeSelector: 
+      node-role.kubernetes.io/control-plane: "true"
+    suffix: controller-k0s-daemon
     tolerations:
     - effect: NoSchedule
       key: node-role.kubernetes.io/master
       operator: Exists
+    volumes:
+      - name: hostfs
+        hostPath:
+          path: /
+    volumeMounts:
+      - name: hostfs
+        mountPath: /hostfs
+        readOnly: true
+        mountPropagation: HostToContainer
 coreDns:
   enabled: true
   endpoints: []
@@ -318,16 +577,15 @@ defaultCRConfig:
         tls:
           insecure_skip_verify: true
     processors:
- 
     extensions:
       basicauth/logs:
         client_auth:
-          password: uusername
-          username: ppassword
+          password: ppassword
+          username: uusername
       basicauth/metrics:
         client_auth:
-          password: uusername
-          username: ppassword
+          password: uusername 
+          username: ppassword 
     receivers:
       otlp:
         protocols:
