@@ -165,6 +165,27 @@ collectors:
           send_batch_max_size: 1500
           send_batch_size: 1000
           timeout: 1s
+        transform/syslog:
+          error_mode: ignore
+          log_statements:
+            - context: log
+              conditions:
+                - attributes["log.file.path"] == "/hostfs/var/log/syslog"
+              statements: 
+                - merge_maps(log.cache, ExtractGrokPatterns(log.body, "%{SYSLOGLINE}", false), "upsert")
+                - merge_maps(log.cache, ExtractGrokPatterns(log.body, "%{(TIMESTAMP_ISO8601|SYSLOGTIMESTAMP):timestamp} %{SYSLOGHOST:host.name} (%{SYSLOGPROG}:)?\\s*%{GREEDYDATA:message}", false, ["GREEDYMULTILINE=(.|\\n)*"]), "upsert") 
+                - merge_maps(log.cache, ExtractGrokPatterns(log.cache["SYSLOGPROG"], "%{DATA:process.executable.name}(?:\\[%{POSINT:process.pid})\\]", true), "upsert") where log.cache["SYSLOGPROG"] != nil
+                - set(log.body, log.cache["message"])
+                - set(log.attributes["syslog.timestamp"], log.cache["timestamp"])
+                - set(log.attributes["syslog.facility"], log.cache["SYSLOGFACILITY"])
+                - >
+                  keep_keys(
+                    log.cache, 
+                    ["host.name", 
+                    "process.pid", 
+                    "process.executable.name" 
+                    ])
+                - merge_maps(log.attributes, log.cache, "upsert") 
         transform/kubeletstats:
           metric_statements:
             - context: scope
@@ -289,10 +310,10 @@ collectors:
           - /hostfs/var/log/syslog
           include_file_name: false
           include_file_path: true
-          operators:
-            - type: syslog_parser
-              protocol: rfc3164
-              allow_skip_pri_header: true
+#          operators:
+#            - type: syslog_parser
+#              protocol: rfc3164
+#              allow_skip_pri_header: true
           retry_on_failure:
             enabled: true
           start_at: end
@@ -321,6 +342,7 @@ collectors:
           logs:
             processors:
             - resourcedetection
+            - transform/syslog 
             - batch
             receivers:
             - otlp
@@ -584,8 +606,8 @@ defaultCRConfig:
           username: uusername
       basicauth/metrics:
         client_auth:
-          password: uusername 
-          username: ppassword 
+          password: ppassword
+          username: uusername
     receivers:
       otlp:
         protocols:
@@ -991,3 +1013,5 @@ prometheus-node-exporter:
   releaseLabel: true
   service:
     portName: http-metrics
+
+
