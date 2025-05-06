@@ -36,6 +36,8 @@ spec:
         {{ $readMetricsEndpoint := getField "ChildConfig" "data.read_metrics_endpoint" }}
         {{ $logsEndpoint := getField "ChildConfig" "data.write_logs_endpoint" }}
         {{ $tracesEndpoint := getField "ChildConfig" "data.write_traces_endpoint" }}
+        {{ $vmUser := getField "VmUserSecret" "data.username" | b64dec }}
+        {{ $vmPassword := getField "VmUserSecret" "data.password" | b64dec }}
         {{ $collectorsValuesFromAnnotation := index .Cluster.metadata.annotations "k0rdent.mirantis.com/kof-collectors-values" | default "{}" | fromYaml }}
         {{ $collectorsValuesFromHelm := `
         cleanupJob:
@@ -1389,10 +1391,29 @@ spec:
         {{ $collectorsValuesHere := printf `
         defaultCRConfig:
           config:
+            extensions:
+              basicauth/logs:
+                client_auth:
+                  username: %q
+                  password: %q
+              basicauth/metrics:
+                client_auth:
+                  username: %q
+                  password: %q
             exporters:
+              otlphttp/traces:
+                endpoint: %q
               otlphttp/logs:
+                auth:
+                  authenticator: basicauth/logs
                 logs_endpoint: %q
-        ` $logsEndpoint | fromYaml }}
+              prometheusremotewrite:
+                external_labels:
+                  clusterName: %q
+                auth:
+                  authenticator: basicauth/metrics
+                endpoint: %q
+        ` $vmUser $vmPassword $vmUser $vmPassword $tracesEndpoint $logsEndpoint $childClusterName $writeMetricsEndpoint | fromYaml }}
         {{ mergeOverwrite $collectorsValuesHere $collectorsValuesFromHelm $collectorsValuesFromAnnotation | toYaml | nindent 4 }}
     stopOnConflict: false
     syncMode: Continuous
