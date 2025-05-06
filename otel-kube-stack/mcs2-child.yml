@@ -24,9 +24,11 @@ spec:
       template: kof-operators-0-3-0
       values: |
         opentelemetry-operator:
+           enabled: true
            manager:
              featureGatesMap:
                operator.targetallocator.fallbackstrategy: true
+               operator.targetallocator.mtls: false
     - name: opentelemetry-kube-stack
       namespace: kof
       template: opentelemetry-kube-stack-0.5.2
@@ -55,8 +57,6 @@ spec:
         collectors:
           cluster:
             config:
-              exporters:
-                debug: {}
               processors:
                 batch:
                   send_batch_max_size: 1500
@@ -1401,8 +1401,12 @@ spec:
                   username: %q
                   password: %q
             exporters:
+              debug:
+                verbosity: detailed
               otlphttp/traces:
                 endpoint: %q
+                tls:
+                  insecure_skip_verify: true
               otlphttp/logs:
                 auth:
                   authenticator: basicauth/logs
