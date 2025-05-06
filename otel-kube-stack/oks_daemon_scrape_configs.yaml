@@ -198,7 +198,6 @@
         - job
       target_label: __tmp_prometheus_job_name
     - action: replace
-      replacement: "kubelet"
       regex: "(.*)"
       replacement: "$$1"
       separator: ";"
