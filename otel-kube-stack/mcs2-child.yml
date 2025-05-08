@@ -90,12 +90,14 @@ spec:
               service:
                 pipelines:
                   logs:
+                    exporters: null
                     processors:
                     - resourcedetection
                     - batch
                     receivers:
                     - k8sobjects
                   metrics:
+                    exporters: null
                     processors:
                     - resourcedetection
                     - batch
@@ -157,6 +159,7 @@ spec:
                     exporters:
                       - debug
                   metrics:
+                    exporters: null
                     receivers:
                       - prometheus
                     processors:
@@ -194,6 +197,28 @@ spec:
                   send_batch_max_size: 1500
                   send_batch_size: 1000
                   timeout: 1s
+                transform/syslog:
+                  error_mode: ignore
+                  log_statements:
+                    - context: log
+                      conditions:
+                        - attributes["log.file.path"] == "/hostfs/var/log/syslog"
+                      statements:
+                        - merge_maps(log.cache, ExtractGrokPatterns(log.body, "%{SYSLOGLINE}", false), "upsert")
+                        - merge_maps(log.cache, ExtractGrokPatterns(log.body, "%{(TIMESTAMP_ISO8601|SYSLOGTIMESTAMP):timestamp} %{SYSLOGHOST:host.name} (%{SYSLOGPROG}:)?\\s*%{GREEDYDATA:message}", false, ["GREEDYMULTILINE=(.|\\n)*"]), "upsert")
+                        - merge_maps(log.cache, ExtractGrokPatterns(log.cache["SYSLOGPROG"], "%{DATA:process.executable.name}(?:\\[%{POSINT:process.pid})\\]", true), "upsert") where log.cache["SYSLOGPROG"] != nil
+                        - set(log.body, log.cache["message"])
+                        - set(log.attributes["syslog.timestamp"], log.cache["timestamp"])
+                        - set(log.attributes["syslog.facility"], log.cache["SYSLOGFACILITY"])
+                        - >
+                          keep_keys(
+                            log.cache,
+                            ["host.name",
+                            "process.pid",
+                            "process.executable.name"
+                            ])
+                        - merge_maps(log.attributes, log.cache, "upsert")
+
                 transform/kubeletstats:
                   metric_statements:
                     - context: scope
@@ -686,6 +711,7 @@ spec:
                     - otlp
                     - filelog/containers
                     - filelog/syslog
+                    exporters: null
         #            - journald
                   metrics:
                     processors:
@@ -696,9 +722,9 @@ spec:
                     - batch
                     receivers:
                     - otlp
+                    exporters: null
                   traces:
-                    exporters:
-                    - debug
+                    exporters: null
                     processors:
                     - resourcedetection
                     - batch
@@ -713,8 +739,8 @@ spec:
                 enabled: true
               kubernetesAttributes:
                 enabled: true
-        #      logsCollection:
-        #        enabled: true
+              logsCollection:
+                enabled: false
             resources:
               limits:
                 cpu: 200m
@@ -727,6 +753,7 @@ spec:
               supplementalGroups: [4, 999]
         #    securityContext:
         #      supplementalGroups: [4000]
+            scrape_configs_file: ""
             suffix: daemon
             tolerations:
             - effect: NoSchedule
@@ -891,12 +918,14 @@ spec:
               service:
                 pipelines:
                   logs:
+                    exporters: null
                     processors:
                     - resourcedetection
                     - batch
                     receivers:
                     - otlp
                   metrics:
+                    exporters: null
                     processors:
                     - resourcedetection
                     - transform/kubeletstats
@@ -907,6 +936,7 @@ spec:
                     - otlp
                     - prometheus
                   traces:
+                    exporters: null
                     processors:
                     - resourcedetection
                     - batch
@@ -931,7 +961,6 @@ spec:
               requests:
                 cpu: 100m
                 memory: 250Mi
-            scrape_configs_file: k0s_scrape_configs.yaml
             nodeSelector:
               node-role.kubernetes.io/control-plane: "true"
             suffix: controller-k0s-daemon
