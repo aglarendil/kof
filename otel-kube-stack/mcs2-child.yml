@@ -1,6 +1,12 @@
 apiVersion: k0rdent.mirantis.com/v1alpha1
 kind: MultiClusterService
 metadata:
+  annotations:
+    meta.helm.sh/release-name: kof-child
+    meta.helm.sh/release-namespace: kof
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    k0rdent.mirantis.com/component: kcm
   name: kof-child-cluster
 spec:
   clusterSelector:
@@ -159,9 +165,8 @@ spec:
                     exporters:
                       - debug
                   metrics:
-                    exporters: null
-                    receivers:
-                      - prometheus
+                    #exporters: null
+                    #receivers: null
                     processors:
                       - resourcedetection
                       - batch
@@ -720,8 +725,7 @@ spec:
                     - transform/hostmetrics
                     - transform/k8snode
                     - batch
-                    receivers:
-                    - otlp
+                    receivers: null
                     exporters: null
                   traces:
                     exporters: null
@@ -827,6 +831,9 @@ spec:
                   timeout: 2s
               receivers:
                 prometheus:
+                  api_server:
+                    server_config:
+                      endpoint: localhost:19090
                   config:
                     scrape_configs:
                       - follow_redirects: false
@@ -918,25 +925,23 @@ spec:
               service:
                 pipelines:
                   logs:
-                    exporters: null
+              #      exporters: null
                     processors:
                     - resourcedetection
                     - batch
                     receivers:
                     - otlp
                   metrics:
-                    exporters: null
+               #     exporters: null
                     processors:
                     - resourcedetection
                     - transform/kubeletstats
                     - transform/hostmetrics
                     - transform/k8snode
                     - batch
-                    receivers:
-                    - otlp
-                    - prometheus
+                #    receivers: null
                   traces:
-                    exporters: null
+                #    exporters: null
                     processors:
                     - resourcedetection
                     - batch
@@ -1042,6 +1047,9 @@ spec:
                   exporters:
                   - prometheusremotewrite
                   - debug
+                  receivers:
+                  - prometheus
+                  - otlp
                 traces:
                   exporters:
                   - otlphttp/traces
@@ -1430,8 +1438,7 @@ spec:
                   username: %q
                   password: %q
             exporters:
-              debug:
-                verbosity: detailed
+              debug: {}
               otlphttp/traces:
                 endpoint: %q
                 tls:
@@ -1442,7 +1449,7 @@ spec:
                 logs_endpoint: %q
               prometheusremotewrite:
                 external_labels:
-                  clusterName: %q
+                  cluster: %q
                 auth:
                   authenticator: basicauth/metrics
                 endpoint: %q
