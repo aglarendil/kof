@@ -46,6 +46,12 @@ spec:
           opentelemetry-kube-stack:
             defaultCRConfig:
               config:
+                processors:
+                  resource/k8sclustername:
+                    attributes:
+                    - action: insert
+                      key: k8s.cluster.name
+                      value: %q
                 extensions:
                   basicauth/logs:
                     client_auth:
@@ -76,7 +82,7 @@ spec:
                   url: %q
               exporter:
                 defaultClusterId: %q
-            ` $childClusterName $vmUser $vmPassword $vmUser $vmPassword $tracesEndpoint $logsEndpoint $childClusterName $writeMetricsEndpoint $readMetricsEndpoint $childClusterName | fromYaml {{`}}`}}
+            ` $childClusterName $childClusterName $vmUser $vmPassword $vmUser $vmPassword $tracesEndpoint $logsEndpoint $childClusterName $writeMetricsEndpoint $readMetricsEndpoint $childClusterName | fromYaml {{`}}`}}
           {{`{{ mergeOverwrite $collectorsValuesHere $collectorsValuesFromHelm $collectorsValuesFromAnnotation | toYaml | nindent 4 }}`}}
     templateResourceRefs:
     - identifier: ChildConfig

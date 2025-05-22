@@ -93,6 +93,12 @@ spec:
           opentelemetry-kube-stack:
             defaultCRConfig:
               config:
+                processors:
+                  resource/k8sclustername:
+                    attributes:
+                    - action: insert
+                      key: k8s.cluster.name
+                      value: %q
                 extensions:
                   basicauth/logs:
                     client_auth:
@@ -129,7 +135,7 @@ spec:
             opencost:
               exporter:
                 defaultClusterId: %q
-          ` $vmUser $vmPassword $vmUser $vmPassword .Cluster.metadata.name .Cluster.metadata.name .Cluster.metadata.name | fromYaml  {{`}}`}}
+          ` .Cluster.metadata.name $vmUser $vmPassword $vmUser $vmPassword .Cluster.metadata.name .Cluster.metadata.name .Cluster.metadata.name | fromYaml  {{`}}`}}
           {{`{{`}} mergeOverwrite $collectorsValuesHere $collectorsValuesFromHelm $collectorsValuesFromAnnotation | toYaml | nindent 4 {{`}}`}}
     templateResourceRefs:
       - resource:

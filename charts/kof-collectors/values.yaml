@@ -61,7 +61,9 @@ opentelemetry-kube-stack:
             - kubeadm
             override: false
             timeout: 2s
-        receivers: {}
+        receivers:
+          k8s_events:
+            auth_type: serviceAccount
         service:
           pipelines:
             logs:
@@ -69,14 +71,17 @@ opentelemetry-kube-stack:
               processors:
               - resourcedetection
               - batch
+              - resource/k8sclustername
               receivers:
               - k8sobjects
+              - k8s_events
             metrics:
               exporters: null
               processors:
               - resourcedetection
               - batch
               - transform/k8scluster
+              - resource/k8sclustername
               receivers:
               - k8s_cluster
       enabled: true
@@ -678,6 +683,7 @@ opentelemetry-kube-stack:
           pipelines:
             logs:
               processors:
+              - resource/k8sclustername
               - resourcedetection
               - transform/syslog
               - batch
