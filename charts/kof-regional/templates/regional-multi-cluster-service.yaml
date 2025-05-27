@@ -29,18 +29,27 @@ spec:
         template: ingress-nginx-4-12-1
         values: |
           {{`{{`}} $ingressNginxValuesFromAnnotation := index .Cluster.metadata.annotations "k0rdent.mirantis.com/kof-ingress-nginx-values" | default "{}" | fromYaml {{`}}`}}
-          {{`{{`}} $ingressNginxValuesFromHelm := `{{ .Values.ingress-nginx | toYaml | nindent 10 }}` | fromYaml {{`}}`}}
+          {{`{{`}} $ingressNginxValuesFromHelm := `{{ index .Values "ingress-nginx" | toYaml | nindent 10 }}` | fromYaml {{`}}`}}
+          {{`{{`}} $ingressNginxValuesHere := `{}` | fromYaml {{`}}`}}
           {{`{{`}} if eq .InfrastructureProvider.kind "AzureCluster" {{`}}`}}
-          {{`{{`}} $ingressNginxValuesHere := printf `
+          {{`{{`}} $ingressNginxValuesHere = printf `
           controller:
             service:
               annotations:
                 service.beta.kubernetes.io/azure-load-balancer-health-probe-request-path: /healthz ` | fromYaml {{`}}`}}
-          {{ else }}
-          {{`{{`}} $ingressNginxValuesHere := `{}` | fromYaml {{`}}`}}
-          {{ end }}
+          {{`{{ end }}`}}
           {{`{{`}} mergeOverwrite $ingressNginxValuesHere $ingressNginxValuesFromHelm $ingressNginxValuesFromAnnotation | toYaml | nindent 4 {{`}}`}}
       {{- end }}
+
+      - name: kof-operators
+        namespace: {{ .Release.Namespace }}
+        template: kof-operators-{{ $version }}
+        templateChain: kof-operators-{{ $version }}
+        values: |
+          {{`{{ $operatorsValuesFromAnnotation := index .Cluster.metadata.annotations "k0rdent.mirantis.com/kof-operators-values" | default "{}" | fromYaml }}`}}
+          {{`{{`}} $operatorsValuesFromHelm := `{{ .Values.operators | toYaml | nindent 10 }}` | fromYaml {{`}}`}}
+          {{`{{`}} $operatorsValuesHere :=` {} `| fromYaml {{`}}`}}
+          {{`{{ mergeOverwrite $operatorsValuesHere $operatorsValuesFromHelm $operatorsValuesFromAnnotation | toYaml | nindent 4 }}`}}
 
       - name: kof-storage
         namespace: {{ .Release.Namespace }}
@@ -87,10 +96,6 @@ spec:
             namespace: "{{`{{ .Cluster.metadata.namespace }}`}}"
             name: kof-record-vmrules-{{`{{ .Cluster.metadata.name }}`}}
 
-      - name: kof-operators
-        namespace: {{ .Release.Namespace }}
-        template: kof-operators-{{ $version }}
-        templateChain: kof-operators-{{ $version }}
 
       - name: kof-collectors
         namespace: {{ .Release.Namespace }}
