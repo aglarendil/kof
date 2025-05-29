@@ -12,6 +12,12 @@ spec:
   evaluationInterval: 15s
   externalLabels: {}
   extraArgs:
+    {{- if .Values.victoriametrics.vmalert.extraArgs.externalURL }}
+    external.url: {{ .Values.victoriametrics.vmalert.extraArgs.externalURL }}
+    {{- end }}
+    {{- if .Values.victoriametrics.vmalert.extraArgs.externalAlertSource }}
+    external.alert.source: {{ .Values.victoriametrics.vmalert.extraArgs.externalAlertSource }}
+    {{- end }}
     http.pathPrefix: /
     remoteWrite.disablePathAppend: "true"
   image:

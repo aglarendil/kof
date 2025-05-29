@@ -149,6 +149,8 @@ victoriametrics:
   vmalert:
     # -- Enables VictoriaMetrics alerts.
     enabled: true
+    extraArgs:
+      externalURL: "https://grafana.example.net"
 
     # -- `url` in [VMAlertRemoteReadSpec](https://docs.victoriametrics.com/operator/api/#vmalertremotereadspec).
     # It is auto-configured by kof if you keep it empty.

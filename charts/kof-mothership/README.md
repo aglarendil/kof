@@ -77,6 +77,7 @@ A Helm chart that deploys Grafana, Promxy, and VictoriaMetrics.
 | victoria-metrics-operator | object | `{"crds":{"cleanup":{"enabled":true},`<br>`"plain":true},`<br>`"enabled":true}` | [Docs](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator#parameters) |
 | victoriametrics<br>.enabled | bool | `true` | Enables VictoriaMetrics. |
 | victoriametrics<br>.vmalert<br>.enabled | bool | `true` | Enables VictoriaMetrics alerts. |
+| victoriametrics<br>.vmalert<br>.extraArgs<br>.externalURL | string | `"https://grafana.example.net"` |  |
 | victoriametrics<br>.vmalert<br>.remoteRead | string | `""` | `url` in [VMAlertRemoteReadSpec](https://docs.victoriametrics.com/operator/api/#vmalertremotereadspec). It is auto-configured by kof if you keep it empty. |
 | victoriametrics<br>.vmalert<br>.vmalertmanager<br>.config | string | `""` | `configRawYaml` of [VMAlertmanagerSpec](https://docs.victoriametrics.com/operator/api/#vmalertmanagerspec). Check examples [here](https://github.com/k0rdent/kof/blob/main/docs/alerts.md). |
 | victoriametrics<br>.vmcluster<br>.enabled | bool | `true` | Enables high-available and fault-tolerant version of VictoriaMetrics database. |
