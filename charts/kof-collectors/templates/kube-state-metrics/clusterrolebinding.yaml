@@ -9,6 +9,6 @@ roleRef:
   name: kube-state-metrics-aggregated-role
 subjects:
   - kind: ServiceAccount
-    name: kube-state-metrics
-    namespace: kof
+    name: {{ .Release.Name }}-kube-state-metrics
+    namespace: {{ .Release.Namespace }}
 {{- end }}

@@ -108,6 +108,9 @@ opentelemetry-kube-stack:
         allocationFallbackStrategy: consistent-hashing
         enabled: true
         image: ghcr.io/open-telemetry/opentelemetry-operator/target-allocator:main
+        observability:
+          metrics:
+            enableMetrics: true
         prometheusCR:
           enabled: true
           podMonitorSelector: {}
@@ -1048,7 +1051,9 @@ opentelemetry-kube-stack:
     managementState: managed
     mode: deployment
     nodeSelector: {}
-    observability: {}
+    observability:
+      metrics:
+        enableMetrics: true
     podAnnotations: {}
     podDisruptionBudget: {}
     podSecurityContext: {}
