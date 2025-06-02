@@ -45,7 +45,10 @@ spec:
             summary: An alert that should always be firing to certify that Alertmanager is working properly.
           expr: vector(1)
           labels:
-            severity: none
+            severity: informational
+            service: kof
+            host: alertmanager
+            subject: '[INFORMATIONAL] Watchdog'
         - alert: InfoInhibitor
           annotations:
             description: 'This is an alert that is used to inhibit info alerts.
