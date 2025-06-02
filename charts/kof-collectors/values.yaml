@@ -730,11 +730,9 @@ opentelemetry-kube-stack:
         requests:
           cpu: 100m
           memory: 250Mi
-
-      podSecurityContext:
-        supplementalGroups: [4, 999]
-  #    securityContext:
-  #      supplementalGroups: [4000]
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
       scrape_configs_file: ""
       suffix: daemon
       tolerations:
